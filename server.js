@@ -1,53 +1,85 @@
 const express = require('express');
+const Pool = require('pg').Pool;
+const cors = require('cors');
+
+const pool = new Pool ({
+    user: 'xkwdzzscmhwicx',
+    password: '998c55ea896727a30fe9264b07e4dfa47b91475ee08178a495a7adb61b80797c',
+    host: 'ec2-34-197-141-7.compute-1.amazonaws.com',
+    database:'derr3lolq625nu',
+    port: 5432,
+    ssl: {rejectUnauthorized: false }
+})
 
 const server = express();
 
+server.use(cors());
+
 server.use(express.json());
 
-const viagem = [
-    {id: 1, cidade: 'Rio de Janeiro', pais: 'Brasil', gostei: 'Sim'},
-    {id: 2, cidade: 'Bahia', pais: 'Brasil', gostei:'Sim'} 
-]
+// Viagem (id, cidade, pais, gostei)
 
-server.get('/viagem', function(request, response) {
-    response.json(viagem);
+// GET
+server.get('/viagem', async function(request, response) {
+   result = await pool.query('SELECT * FROM viagem');
+
+   return response.json(result.rows);
 })
 
-server.post('/viagem', function(request, response) {
- 
-    const {id, cidade, pais, gostei} = request.body;
- 
-    viagem.push({id, cidade, pais, gostei});
-    response.status(204).send();
+server.get('/viagem/search', async function(request, response) {
+    const cidade = request.query.cidade;
+    const sql = `SELECT * FROM viagem WHERE cidade ILIKE $1`;
+    const result = await pool.query(sql, ["%" + cidade + "%"]);
+    return response.json(result.rows);
 })
 
-server.put('/viagem/:id', function(request, response){
+server.get('/viagem/:id', async function(request, response) {
     const id = request.params.id;
-    const {cidade, pais, gostei} = request.body;
+    const sql = `SELECT * FROM viagem WHERE id = $1`
+    const result = await pool.query(sql, [id]);
+    return response.json(result.rows);
+})
  
-    for(let i = 0; i < viagem.length; i++){
-        if(viagem[i].id == id) {
-            viagem[i].cidade = cidade;
-            viagem[i].pais = pais;
-            viagem[i].gostei = gostei;
-            break;
-        }
-    }
- 
+//POST
+server.post('/viagem', async function(request, response) {
+    const cidade = request.body.cidade;
+    const pais = request.body.pais;
+    const sql= `INSERT INTO viagem (cidade, pais, gostei) VALUES ($1, $2, $3)`;
+    await pool.query(sql, [cidade, pais, true]);
     return response.status(204).send();
 })
 
-server.delete('/viagem/:id', function(request, response) {
- 
+//DELETE
+server.delete('/viagem/:id', async function(request, response) {
     const id = request.params.id;
- 
-    for(let i = 0; i < viagem.length; i++) {
-        if(viagem[i].id == id) {
-            viagem.splice(i, 1);
-            break;
-        }
-    }
- 
+    const sql = `DELETE FROM viagem WHERE id = $1`;
+    await pool.query(sql, [id]);
+    return response.status(204).send();
+})
+
+
+//UPDATE
+server.put('/viagem/:id', async function(request, response) {
+    const id = request.params.id;
+    const { cidade, pais, gostei } = request.body;
+    const sql = `UPDATE viagem SET cidade = $1, pais = $2, gostei = $3 WHERE id = $4`;
+    await pool.query(sql, [cidade, pais, gostei, id]);
+    return response.status(204).send();
+})
+
+
+//UPDATE DO gostei
+server.patch('/viagem/:id/gostei', async function(request, response) {
+    const id = request.params.id;
+    const sql = `UPDATE viagem SET gostei = true WHERE id = $1`;
+    await pool.query(sql, [id]);
+    return response.status(204).send();
+})
+
+server.patch('/viagem/:id/naogostei', async function(request, response) {
+    const id = request.params.id;
+    const sql = `UPDATE viagem SET gostei = false WHERE id = $1`;
+    await pool.query(sql, [id]);
     return response.status(204).send();
 })
 
